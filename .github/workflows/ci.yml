@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    name: PyTorch smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Install PyTorch (CPU wheel)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Show environment
+        run: |
+          echo "Runner OS : ${{ runner.os }}"
+          echo "Commit    : ${{ github.sha }}"
+          python --version
+          python -c "import torch; print('torch version:', torch.__version__); print('cuda available:', torch.cuda.is_available())"
+
+      - name: Compile Python sources
+        run: python -m compileall -q .
+
+      - name: Validate notebooks
+        run: |
+          python - <<'PY'
+          import glob, json
+          files = sorted(glob.glob('**/*.ipynb', recursive=True))
+          for path in files:
+              with open(path, encoding='utf-8') as f:
+                  nb = json.load(f)
+              assert nb['nbformat'] == 4, f'{path}: unexpected nbformat'
+              assert 'cells' in nb, f'{path}: missing cells'
+              print(f'OK  {path}  ({len(nb["cells"])} cells)')
+          print(f'Validated {len(files)} notebooks')
+          PY
+
+      - name: Run Quickstart smoke test
+        run: python 00_quickstart/quickstart.py

@@ -1,0 +1,5 @@
+# 本地运行 notebook 所需依赖（不锁死版本，遇到兼容问题再固定）
+torch
+torchvision
+matplotlib
+jupyter
